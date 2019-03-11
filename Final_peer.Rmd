@@ -36,11 +36,15 @@ Do a detailed EDA of the ames_train data set, to learn about the structure of th
 After you have explored completely, submit the three graphs/plots that you found most informative during your EDA process, and briefly explain what you learned from each (why you found each informative).
 
 * * *
-
-NOTE: Write your written response to part 1 here. Delete this note before you submit your work.
+Graph1: Relationship between price Vs Year.Built
 
 ```{r creategraphs}
+ames_train %>% ggplot(aes(x = Year.Built, y = price)) + geom_point()
 ```
+
+The relationship appears to be positive and it's clear that new houses have higher price than the old houses.
+
+Graph2: 
 
 * * *
 
