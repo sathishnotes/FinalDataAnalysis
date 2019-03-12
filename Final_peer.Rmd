@@ -25,6 +25,8 @@ Use the code block below to load any necessary packages
 library(statsr)
 library(dplyr)
 library(BAS)
+library(tidyverse)
+library(MASS)
 ```
 
 ## Part 1 - Exploratory Data Analysis (EDA)
@@ -36,15 +38,30 @@ Do a detailed EDA of the ames_train data set, to learn about the structure of th
 After you have explored completely, submit the three graphs/plots that you found most informative during your EDA process, and briefly explain what you learned from each (why you found each informative).
 
 * * *
+
 Graph1: Relationship between price Vs Year.Built
 
 ```{r creategraphs}
 ames_train %>% ggplot(aes(x = Year.Built, y = price)) + geom_point()
 ```
 
-The relationship appears to be positive and it's clear that new houses have higher price than the old houses.
+The relationship appears to be positive and it's clear from the above plot that new houses have higher price when compared to the old houses. I'm interested in this graph, as it shows clear view about the price in accordance with the year the house was built.
 
-Graph2: 
+Graph2: Relationship between price Vs. Overall Quality
+
+```{r}
+ames_train %>% group_by(Overall.Qual) %>% summarize(median = median(log(price))) %>% ggplot(aes(x = Overall.Qual, y = median)) + geom_point() + geom_smooth(se = FALSE,method = "lm") + labs(title = "Overall Quality Vs Median Price of homes in AMES", x = "Overall Quality", y = "Median Price of Home")
+```
+
+From the above plot, it's really clear that the price of a home increases as the overall quality increases. I've also drawn a regression line to see the result much more clear. 
+
+Graph3: 
+
+```{r}
+ames_train %>% group_by(Overall.Qual, Land.Slope) %>% summarize(meanPrice = mean(price)) %>% ggplot(aes(x = Overall.Qual, y = meanPrice, fill = Land.Slope)) + geom_bar(stat = "identity") + labs(title = "Overall Quality Vs Median Price with Reference to Land Slope Category", x = "Overall Quality with Reference to Land Slope", y = "Median Price", fill = "Land Slope")
+```
+
+With reference to the previous plot, I just wanted to check how price is distributed with respect to overall quality and land slope category.
 
 * * *
 
@@ -56,11 +73,27 @@ In building a model, it is often useful to start by creating a simple, intuitive
 Based on your EDA, select *at most* 10 predictor variables from “ames_train” and create a linear model for `price` (or a transformed version of price) using those variables. Provide the *R code* and the *summary output table* for your model, a *brief justification* for the variables you have chosen, and a *brief discussion* of the model results in context (focused on the variables that appear to be important predictors and how they relate to sales price).
 
 * * *
+```{r}
+ames_train <- ames_train %>%
+  filter(Sale.Condition == "Normal")
+```
 
-NOTE: Write your written response to section 2.1 here. Delete this note before you submit your work.
 
 ```{r fit_model}
+initialModel <- lm(log(price) ~ Overall.Qual + log(Garage.Area + 1) +   
+                  log(Total.Bsmt.SF + 1) + Garage.Cars + log(area) + 
+                  Central.Air + 
+                  Bedroom.AbvGr + Year.Built +
+                  log(Lot.Area) +  Overall.Cond,
+                 data = ames_train)
 ```
+
+`Summary Table for the Initial Linear Regression Model:`
+
+```{r}
+summary(initialModel)
+```
+
 
 * * *
 
@@ -70,10 +103,46 @@ Now either using `BAS` another stepwise selection procedure choose the "best" mo
 
 * * *
 
-NOTE: Write your written response to section 2.2 here. Delete this note before you submit your work.
+`First Model Selection: Using AIC`
 
 ```{r model_select}
+firstFinalModel <- stepAIC(initialModel, k = 2)
 ```
+
+```{r}
+summary(firstFinalModel)
+```
+
+`Second Model Selection : using BIC`
+
+```{r}
+secondFinalModel <- stepAIC(initialModel, k = log(nrow(ames_train)))
+```
+
+```{r}
+summary(secondFinalModel)
+```
+
+`Both the model selection do not arrive at the same models.`
+
+`In the model selection using AIC, the predictors remains same after stepAIC but in the BIC model selection using stepAIC, one predictor have been removed which is Garage.Area`
+
+`Besides when comparing AIC and BIC, the adjusted R-squared value remains same in both BIC yielding 0.867 and in AIC, yielding adjusted r-squared value 0.8672`
+
+Let's fit the bayesian model also:
+
+```{r}
+basModel <- bas.lm(log(price) ~ Overall.Qual +   
+                  log(Total.Bsmt.SF + 1) + Garage.Cars + log(area) + 
+                  Central.Air + 
+                  Bedroom.AbvGr + Year.Built +
+                  log(Lot.Area) +  Overall.Cond,
+                 data = ames_train, prior = "AIC", modelprior=uniform())
+```
+```{r}
+summary(basModel)
+```
+
 
 * * *
 
@@ -82,10 +151,23 @@ One way to assess the performance of a model is to examine the model's residuals
 
 * * *
 
-NOTE: Write your written response to section 2.3 here. Delete this note before you submit your work.
-
 ```{r model_resid}
+trainPredict <- exp(predict(firstFinalModel, ames_train))
 ```
+
+```{r}
+residualTrain <- ames_train$price - trainPredict
+```
+
+```{r}
+tibble(residualTrain, ames_train$price) %>% plot()
+```
+
+
+```{r}
+plot(firstFinalModel$fitted.values, firstFinalModel$residuals)
+```
+
 
 * * *
 
@@ -95,10 +177,11 @@ You can calculate it directly based on the model output. Be specific about the u
 
 * * *
 
-NOTE: Write your written response to section 2.4 here. Delete this note before you submit your work.
-
-
 ```{r model_rmse}
+predictFirstModel <-exp(predict(firstFinalModel,ames_train)) 
+resid.firstModel <- ames_train$price - predictFirstModel
+rmse.firstModel <- sqrt(mean(resid.firstModel^2))
+rmse.firstModel
 ```
 
 * * *
@@ -115,10 +198,14 @@ Use your model from above to generate predictions for the housing prices in the 
 
 * * *
 
-NOTE: Write your written response to section 2.5 here. Delete this note before you submit your work.
-
 ```{r initmodel_test}
+predictFirstModel <-exp(predict(firstFinalModel,ames_test)) 
+resid.firstModel <- ames_test$price - predictFirstModel
+rmse.firstModel <- sqrt(mean(resid.firstModel^2))
+rmse.firstModel
 ```
+
+The out-of-sample RMSE `25388.73` is higher than the in-sample RMSE `24039.89`.
 
 * * *
 
@@ -130,16 +217,36 @@ Now that you have developed an initial model to use as a baseline, create a fina
 
 Carefully document the process that you used to come up with your final model, so that you can answer the questions below.
 
+```{r}
+names(ames_train)
+```
+
+
+```{r}
+finalModel <- lm(log(price) ~ Overall.Qual + log(Garage.Area + 1) +   
+                  log(Total.Bsmt.SF + 1) + Garage.Cars + log(area) + 
+                  Full.Bath + Half.Bath + 
+                  Bedroom.AbvGr + Year.Built + log(X1st.Flr.SF) + 
+                  log(X2nd.Flr.SF + 1) +
+                  log(Lot.Area) +  Central.Air + Overall.Cond + Land.Slope + Year.Remod.Add
+                  + Bsmt.Qual,
+                 data = ames_train)
+```
+
+
+```{r}
+finalModel <- stepAIC(finalModel)
+```
+
 ### Section 3.1 Final Model
 
 Provide the summary table for your model.
 
 * * *
-
-NOTE: Write your written response to section 3.1 here. Delete this note before you submit your work.
-
+Our final model explains 91.12% variability with adjusted r-squared value of 0.9112. Full model started with 17 predictors and ended with 14 predictors yielding an adjusted r-squared value of 0.9112 and AIC value of -3564.43
 
 ```{r model_playground}
+summary(finalModel)
 ```
 
 * * *
@@ -150,9 +257,12 @@ Did you decide to transform any variables?  Why or why not? Explain in a few sen
 
 * * *
 
-NOTE: Write your written response to section 3.2 here. Delete this note before you submit your work.
+Yes. I've decided to transform Lot.Area, area, X1st.Flr.SF to their log versions log(Lot.Area), log(area), log(X1st.Flr.SF) as the natural log of these predictors provide better linearity to the result.
 
 ```{r model_assess}
+predicted <- predict(finalModel,ames_train)
+plot(log(ames_train$price) ~ predicted)
+#plot(!(is.na(ames_train$price)) ~ finalModel$fitted.values)
 ```
 
 * * *
