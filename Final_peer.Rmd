@@ -643,7 +643,9 @@ Yes indeed. only 0.0484928 proportion have price that falls outside the predicti
 Provide a brief summary of your results, and a brief discussion of what you have learned about the data and your model. 
 
 * * *
+Started with cleaning of data, doing exploratory data analysis, transforming NA's to a new category , log transformations of certain variables, fitting a model with 17 variables, model selection using BIC & AIC, model diagnostics - residual plots, model testing & validations ending with 12 predictors for the response variable price which had adjusted r-squared value of 0.916 explaining 91.6 % of variability in the target variable and RMSE (Root Mean Squared Error) of 20606 dollars in the out-of-sample validation dataset and 95.15% of the 95% credible intervals contain the true price of the house in the validation dataset.
 
+It's really a lot of learning. This learning should further be made little deeper with further understanding of the statistical methods with different real time data sets. Each of the labs, quizzes, projects have taught us how to deal with a data and build better models.
 
 
 * * *
