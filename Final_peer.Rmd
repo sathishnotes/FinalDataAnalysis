@@ -39,6 +39,75 @@ After you have explored completely, submit the three graphs/plots that you found
 
 * * *
 
+```{r}
+summary(ames_train)
+```
+
+Let's first clean the data.
+
+The categorical variables which are encoded as type int have to be converted to factors first.
+
+* MS.SubClass
+* Overall.Qual
+* Overall.Cond
+
+```{r}
+str(ames_train$MS.SubClass)
+```
+
+```{r}
+str(ames_train$Overall.Cond)
+```
+
+```{r}
+str(ames_train$Overall.Qual)
+```
+
+Convert the above three variables to factors:
+
+```{r}
+ames_train <- ames_train %>% mutate(MS.SubClass = as.factor(MS.SubClass), Overall.Qual = as.factor(Overall.Qual), Overall.Cond = as.factor(Overall.Cond))
+```
+
+Transformation of NA's to a new category will avoid bias in the data and the modelling by removing data from the dataset.
+
+Lot.Frontage variable is a continuous variable which has 167 NA's (missing data). Hence, we shall not transform Lot.Frontage variable. 
+
+But other variables such as , Alley, Bsmt.Qual, Bsmt.Cond, Bsmt.Exposure, BsmtFin.Type.1, BsmtFin.Type.2, Fireplace.Qu, Garage.Type, Garage.Finish,Garage.Qual,Garage.Cond,Pool.QC, Fence, Misc.Feature are categorical variables which has NA's that should be converted to a new category.
+
+```{r}
+ames_train <- ames_train %>% mutate(
+  Alley = if_else(is.na(Alley), 'No Alley', as.character(Alley)),
+  Bsmt.Qual = if_else(is.na(Bsmt.Qual), 'No Basement', as.character(Bsmt.Qual)),
+  Bsmt.Cond = if_else(is.na(Bsmt.Cond), 'No Basement', as.character(Bsmt.Cond)),
+  Bsmt.Exposure = if_else(is.na(Bsmt.Exposure), 'No Basement', as.character(Bsmt.Cond)),
+  BsmtFin.Type.1 = if_else(is.na(BsmtFin.Type.1), 'No Basement', as.character(BsmtFin.Type.1)),
+  BsmtFin.Type.2 = if_else(is.na(BsmtFin.Type.2), 'No Basement', as.character(BsmtFin.Type.2)),
+  Fireplace.Qu = if_else(is.na(Fireplace.Qu), 'No Fireplace', as.character(Fireplace.Qu)),
+  Garage.Type = if_else(is.na(Garage.Type), 'No Garage', as.character(Garage.Type)),
+  Garage.Finish = if_else(is.na(Garage.Finish), 'No Garage', as.character(Garage.Finish)),
+  Garage.Qual = if_else(is.na(Garage.Qual), 'No Garage', as.character(Garage.Qual)),
+  Garage.Cond = if_else(is.na(Garage.Cond), 'No Garage', as.character(Garage.Cond)),
+  Pool.QC = if_else(is.na(Pool.QC), 'No Pool', as.character(Pool.QC)),
+  Fence = if_else(is.na(Fence), 'No Fence', as.character(Fence)),
+  Misc.Feature = if_else(is.na(Misc.Feature), 'No MiscFeature', as.character(Misc.Feature))
+
+)
+```
+
+At last, let's filter the data set to contain only "Normal" category in Sale.Condition variable.
+
+```{r}
+ames_train <- ames_train %>% filter(Sale.Condition == 'Normal')
+```
+
+Now, that leaves us 834 observations from 1000 observations.
+```{r}
+nrow(ames_train)
+```
+
+Let's do some Exploratory Data Analysis on the cleaned training data set ames_train.
+
 Graph1: Relationship between price Vs Year.Built
 
 ```{r creategraphs}
@@ -53,9 +122,9 @@ Graph2: Relationship between price Vs. Overall Quality
 ames_train %>% group_by(Overall.Qual) %>% summarize(median = median(log(price))) %>% ggplot(aes(x = Overall.Qual, y = median)) + geom_point() + geom_smooth(se = FALSE,method = "lm") + labs(title = "Overall Quality Vs Median Price of homes in AMES", x = "Overall Quality", y = "Median Price of Home")
 ```
 
-From the above plot, it's really clear that the price of a home increases as the overall quality increases. I've also drawn a regression line to see the result much more clear. 
+From the above plot, it's really clear that the price of a home increases as the overall quality increases.
 
-Graph3: 
+Graph3: Relationship between Overall Quality , Median Price, with reference to Land Slope Category
 
 ```{r}
 ames_train %>% group_by(Overall.Qual, Land.Slope) %>% summarize(meanPrice = mean(price)) %>% ggplot(aes(x = Overall.Qual, y = meanPrice, fill = Land.Slope)) + geom_bar(stat = "identity") + labs(title = "Overall Quality Vs Median Price with Reference to Land Slope Category", x = "Overall Quality with Reference to Land Slope", y = "Median Price", fill = "Land Slope")
@@ -73,11 +142,6 @@ In building a model, it is often useful to start by creating a simple, intuitive
 Based on your EDA, select *at most* 10 predictor variables from “ames_train” and create a linear model for `price` (or a transformed version of price) using those variables. Provide the *R code* and the *summary output table* for your model, a *brief justification* for the variables you have chosen, and a *brief discussion* of the model results in context (focused on the variables that appear to be important predictors and how they relate to sales price).
 
 * * *
-```{r}
-ames_train <- ames_train %>%
-  filter(Sale.Condition == "Normal")
-```
-
 
 ```{r fit_model}
 initialModel <- lm(log(price) ~ Overall.Qual + log(Garage.Area + 1) +   
@@ -105,29 +169,29 @@ Now either using `BAS` another stepwise selection procedure choose the "best" mo
 
 `First Model Selection: Using AIC`
 
-```{r model_select}
-firstFinalModel <- stepAIC(initialModel, k = 2)
+```{r}
+initialModel.AIC <- stepAIC(initialModel, k = 2, direction = "backward", trace = FALSE)
 ```
 
 ```{r}
-summary(firstFinalModel)
+summary(initialModel.AIC)
 ```
 
 `Second Model Selection : using BIC`
 
 ```{r}
-secondFinalModel <- stepAIC(initialModel, k = log(nrow(ames_train)))
+initialModel.BIC <- stepAIC(initialModel, k = log(nrow(ames_train)), direction = "backward", trace = FALSE)
 ```
 
 ```{r}
-summary(secondFinalModel)
+summary(initialModel.BIC)
 ```
 
-`Both the model selection do not arrive at the same models.`
+`Both the model selection do arrive at the same models.`
 
-`In the model selection using AIC, the predictors remains same after stepAIC but in the BIC model selection using stepAIC, one predictor have been removed which is Garage.Area`
+`In the model selection using AIC and BIC, the predictors remained same yielding both an adjusted r-squared value of 0.9086`
 
-`Besides when comparing AIC and BIC, the adjusted R-squared value remains same in both BIC yielding 0.867 and in AIC, yielding adjusted r-squared value 0.8672`
+`Thus both the models explains 90.86% percent of variability in the target variable.`
 
 Let's fit the bayesian model also:
 
@@ -139,8 +203,17 @@ basModel <- bas.lm(log(price) ~ Overall.Qual +
                   log(Lot.Area) +  Overall.Cond,
                  data = ames_train, prior = "AIC", modelprior=uniform())
 ```
+
+
 ```{r}
 summary(basModel)
+```
+
+Looking at the coefficients of bas model:
+
+```{r}
+coefBasModel <- coef(basModel)
+coefBasModel
 ```
 
 
@@ -152,20 +225,29 @@ One way to assess the performance of a model is to examine the model's residuals
 * * *
 
 ```{r model_resid}
-trainPredict <- exp(predict(firstFinalModel, ames_train))
+predInitialModel.BIC <- exp(predict(initialModel.BIC, ames_train))
 ```
 
 ```{r}
-residualTrain <- ames_train$price - trainPredict
+residualInitialModel.BIC <- ames_train$price - predInitialModel.BIC
 ```
 
 ```{r}
-tibble(residualTrain, ames_train$price) %>% plot()
+plot(residualInitialModel.BIC)
 ```
 
+plot for predicted Values Vs True Values in the Training Data Set:
 
 ```{r}
-plot(firstFinalModel$fitted.values, firstFinalModel$residuals)
+plot(log(ames_train$price) ~ initialModel.BIC$fitted.values)
+```
+
+```{r}
+plot(log(ames_train$price) ~ initialModel.AIC$fitted.values)
+```
+
+```{r}
+plot(initialModel.BIC)
 ```
 
 
@@ -178,10 +260,10 @@ You can calculate it directly based on the model output. Be specific about the u
 * * *
 
 ```{r model_rmse}
-predictFirstModel <-exp(predict(firstFinalModel,ames_train)) 
-resid.firstModel <- ames_train$price - predictFirstModel
-rmse.firstModel <- sqrt(mean(resid.firstModel^2))
-rmse.firstModel
+predInitialModel.BIC <-exp(predict(initialModel.BIC,ames_train)) 
+initialModel.BIC.resid <- ames_train$price - predInitialModel.BIC
+intialModel.BIC.rmse <- sqrt(mean(initialModel.BIC.resid^2))
+paste("The in-sample RMSE (Root Mean Squared Error) is $", format(round(intialModel.BIC.rmse)), "dollars")
 ```
 
 * * *
@@ -198,14 +280,40 @@ Use your model from above to generate predictions for the housing prices in the 
 
 * * *
 
-```{r initmodel_test}
-predictFirstModel <-exp(predict(firstFinalModel,ames_test)) 
-resid.firstModel <- ames_test$price - predictFirstModel
-rmse.firstModel <- sqrt(mean(resid.firstModel^2))
-rmse.firstModel
+Let's first clean the test data:
+
+```{r}
+ames_test <- ames_test %>% mutate(MS.SubClass = as.factor(MS.SubClass), Overall.Qual = as.factor(Overall.Qual), Overall.Cond = as.factor(Overall.Cond))
 ```
 
-The out-of-sample RMSE `25388.73` is higher than the in-sample RMSE `24039.89`.
+```{r}
+ames_test <- ames_test %>% mutate(
+  Alley = if_else(is.na(Alley), 'No Alley', as.character(Alley)),
+  Bsmt.Qual = if_else(is.na(Bsmt.Qual), 'No Basement', as.character(Bsmt.Qual)),
+  Bsmt.Cond = if_else(is.na(Bsmt.Cond), 'No Basement', as.character(Bsmt.Cond)),
+  Bsmt.Exposure = if_else(is.na(Bsmt.Exposure), 'No Basement', as.character(Bsmt.Cond)),
+  BsmtFin.Type.1 = if_else(is.na(BsmtFin.Type.1), 'No Basement', as.character(BsmtFin.Type.1)),
+  BsmtFin.Type.2 = if_else(is.na(BsmtFin.Type.2), 'No Basement', as.character(BsmtFin.Type.2)),
+  Fireplace.Qu = if_else(is.na(Fireplace.Qu), 'No Fireplace', as.character(Fireplace.Qu)),
+  Garage.Type = if_else(is.na(Garage.Type), 'No Garage', as.character(Garage.Type)),
+  Garage.Finish = if_else(is.na(Garage.Finish), 'No Garage', as.character(Garage.Finish)),
+  Garage.Qual = if_else(is.na(Garage.Qual), 'No Garage', as.character(Garage.Qual)),
+  Garage.Cond = if_else(is.na(Garage.Cond), 'No Garage', as.character(Garage.Cond)),
+  Pool.QC = if_else(is.na(Pool.QC), 'No Pool', as.character(Pool.QC)),
+  Fence = if_else(is.na(Fence), 'No Fence', as.character(Fence)),
+  Misc.Feature = if_else(is.na(Misc.Feature), 'No MiscFeature', as.character(Misc.Feature))
+)
+```
+
+
+```{r initmodel_test}
+predInitialModel.BIC.test <-exp(predict(initialModel.BIC,ames_test)) 
+initialModel.BIC.resid.test <- ames_test$price - predInitialModel.BIC.test
+intialModel.BIC.rmse.test <- sqrt(mean(initialModel.BIC.resid.test^2))
+paste("The out-of-sample RMSE (Root Mean Squared Error) is $", format(round(intialModel.BIC.rmse.test)), "dollars")
+```
+
+The out-of-sample RMSE `22726` is higher than the in-sample RMSE `21890`. This explains that the model performs well in in-sample and performs with slightly higher RMSE (root mean squared error) in out-of-sample.
 
 * * *
 
@@ -235,19 +343,33 @@ finalModel <- lm(log(price) ~ Overall.Qual + log(Garage.Area + 1) +
 
 
 ```{r}
-finalModel <- stepAIC(finalModel)
+finalModel.AIC <- stepAIC(finalModel, k = 2, trace = FALSE, direction = "backward")
+finalModel.BIC <- stepAIC(finalModel, k = log(nrow(ames_train)), direction = "backward", trace = FALSE)
 ```
+
+
 
 ### Section 3.1 Final Model
 
 Provide the summary table for your model.
 
 * * *
-Our final model explains 91.12% variability with adjusted r-squared value of 0.9112. Full model started with 17 predictors and ended with 14 predictors yielding an adjusted r-squared value of 0.9112 and AIC value of -3564.43
+Our final model explains 91.67% variability with adjusted r-squared value of 0.9167. Full model started with 17 predictors and ended with 12 predictors yielding an highest adjusted r-squared value of 0.9167
+
+however, model selection BIC, ended with 11 predictors yielding an adjusted r-squared value of 0.9161
 
 ```{r model_playground}
-summary(finalModel)
+summary(finalModel.AIC)
 ```
+
+```{r}
+summary(finalModel.BIC)
+```
+
+```{r}
+anova(initialModel.AIC, finalModel.AIC)
+```
+
 
 * * *
 
@@ -259,12 +381,17 @@ Did you decide to transform any variables?  Why or why not? Explain in a few sen
 
 Yes. I've decided to transform Lot.Area, area, X1st.Flr.SF to their log versions log(Lot.Area), log(area), log(X1st.Flr.SF) as the natural log of these predictors provide better linearity to the result.
 
+I've visualized the same in the below plots (one with log transformation and another one without log transformation)
+
 ```{r model_assess}
-predicted <- predict(finalModel,ames_train)
-plot(log(ames_train$price) ~ predicted)
-#plot(!(is.na(ames_train$price)) ~ finalModel$fitted.values)
+ames_train %>% ggplot(aes(x = area, y = price)) + geom_point() + labs(title = "Area Vs Price", x = "Area", y = "Price")
 ```
 
+```{r}
+ames_train %>% ggplot(aes(x = log(area), y = log(price))) + geom_point() + labs(title = "Log(Area) Vs Log(Price)", x = "Log(Area)", y = "Log(Price)")
+```
+
+From the above plots, log transformations of area vs price depicts better linearity.
 * * *
 
 ### Section 3.3 Variable Interaction
@@ -273,10 +400,16 @@ Did you decide to include any variable interactions? Why or why not? Explain in 
 
 * * *
 
-NOTE: Write your written response to section 3.3 here. Delete this note before you submit your work.
+I've not included any variable interactions as introducing interaction by creating a new variable called as `age` from the predictor `Year.Built` would not have a significant difference.
 
-```{r model_inter}
+```{r}
+ames_train %>% ggplot(aes(x = Year.Built, y = price)) + geom_point() 
 ```
+
+```{r}
+ames_train %>% mutate(age = max(Year.Built) - Year.Built) %>% ggplot(aes(x = age, y = price)) + geom_point()
+```
+
 
 * * *
 
@@ -286,10 +419,21 @@ What method did you use to select the variables you included? Why did you select
 
 * * *
 
-NOTE: Write your written response to section 3.4 here. Delete this note before you submit your work.
+I've used AIC and BIC variable selection with backward elimination from the full model provided with 17 variables. Comparitatively, AIC selecton yielded better results with 12 variables whereas with 11 variables BIC selection yeielded little lesser adjusted r-squared value. As AIC explains 91.67% of variability in the target variable , I've decided to use AIC method.
 
-```{r model_select}
+```{r}
+anova(finalModel.AIC,finalModel.BIC)
 ```
+
+```{r}
+summary(finalModel.AIC)
+```
+
+```{r}
+summary(finalModel.BIC)
+```
+
+The summary results above interprets that the AIC method is better starting with 17 variables and using backward elimination, ended with 12 variables.
 
 * * *
 
@@ -299,11 +443,24 @@ How did testing the model on out-of-sample data affect whether or how you change
 
 * * *
 
-NOTE: Write your written response to section 3.5 here. Delete this note before you submit your work.
+This question refers how the models BIC and AIC performs on out-of-sample data.
+Let's calculate RMSE (Root Mean Squared Error) for both of the final models in out-of-sample data and compare the results.
 
-```{r model_testing}
+```{r}
+predFinalModel.BIC <-exp(predict(finalModel.BIC,ames_test)) 
+finalModel.BIC.resid <- ames_test$price - predFinalModel.BIC
+finalModel.BIC.rmse <- sqrt(mean(finalModel.BIC.resid^2))
+paste("The out-of-sample RMSE (Root Mean Squared Error) is $", format(round(finalModel.BIC.rmse)), "dollars")
 ```
 
+```{r model}
+predFinalModel.AIC <-exp(predict(finalModel.AIC,ames_test)) 
+finalModel.AIC.resid <- ames_test$price - predFinalModel.AIC
+finalModel.AIC.rmse <- sqrt(mean(finalModel.AIC.resid^2))
+paste("The out-of-sample RMSE (Root Mean Squared Error) is $", format(round(finalModel.AIC.rmse)), "dollars")
+```
+
+From the results above, it's clear that model built using BIC selection performs better on the test data whereas AIC MODEL performs little lesser. It's clear from the RMSE value of BIC and AIC. model selected using AIC have RMSE 21457 which is higher than the RMSE 21316 of model selected using BIC.  
 * * *
 
 ## Part 4 Final Model Assessment
@@ -312,9 +469,30 @@ NOTE: Write your written response to section 3.5 here. Delete this note before y
 
 For your final model, create and briefly interpret an informative plot of the residuals.
 
+```{r}
+plot(finalModel.BIC)
+```
+
+```{r}
+plot(finalModel.BIC.resid)
+```
+
+The residuals are plotted around zero. Let's plot a graph between actual values and fitted values.
+ 
+```{r}
+plot(log(ames_train$price) ~ finalModel.BIC$fitted.values)
+```
+
+```{r}
+plot(finalModel.BIC$residuals ~ finalModel.BIC$fitted.values)
+```
+
+
 * * *
 
-NOTE: Write your written response to section 4.1 here. Delete this note before you submit your work.
+The Nearly normal condition is met.
+The Constant variability of residuals is around zero.
+We can see that the model performs good with the above model diagnostic plots.
 
 * * *
 
@@ -324,7 +502,23 @@ For your final model, calculate and briefly comment on the RMSE.
 
 * * *
 
-NOTE: Write your written response to section 4.2 here. Delete this note before you submit your work.
+```{r}
+predFinalModel.BIC <-exp(predict(finalModel.BIC,ames_test)) 
+finalModel.BIC.resid <- ames_test$price - predFinalModel.BIC
+finalModel.BIC.rmse <- sqrt(mean(finalModel.BIC.resid^2))
+paste("The out-of-sample RMSE (Root Mean Squared Error) is $", format(round(finalModel.BIC.rmse)), "dollars")
+```
+
+The RMSE of the final model selected using BIC yeilds 21316
+
+```{r}
+predFinalModel.AIC <-exp(predict(finalModel.AIC,ames_test)) 
+finalModel.AIC.resid <- ames_test$price - predFinalModel.AIC
+finalModel.AIC.rmse <- sqrt(mean(finalModel.AIC.resid^2))
+paste("The out-of-sample RMSE (Root Mean Squared Error) is $", format(round(finalModel.AIC.rmse)), "dollars")
+```
+
+The RMSE of the final model selected using AIC yields 21457
 
 * * *
 
@@ -334,7 +528,15 @@ What are some strengths and weaknesses of your model?
 
 * * *
 
-NOTE: Write your written response to section 4.3 here. Delete this note before you submit your work.
+Strengths:
+* The model selected using BIC have 1 predictor lesser than the model selected using AIC. The model which have lesser predictors performs better. But the model selected using BIC explains less variability in the response variable. 
+* The model have adjusted r-squared value of 0.9167 which says that the model explains 91.67% percent variability in the response variable
+
+
+Weaknesses:
+* The model would have missed other predictors which explains better variability
+* The RMSE can still be minimized by which the model can perform better on out-of-sample data
+* The outliers should have been taken care of.
 
 * * *
 
@@ -352,12 +554,87 @@ You will use the “ames_validation” dataset to do some additional assessment 
 load("ames_validation.Rdata")
 ```
 
+Let's first clean the validation dataset.
+
+```{r}
+ames_validation <- ames_validation %>% mutate(MS.SubClass = as.factor(MS.SubClass), Overall.Qual = as.factor(Overall.Qual), Overall.Cond = as.factor(Overall.Cond))
+```
+
+```{r}
+ames_validation <- ames_validation %>% mutate(
+  Alley = if_else(is.na(Alley), 'No Alley', as.character(Alley)),
+  Bsmt.Qual = if_else(is.na(Bsmt.Qual), 'No Basement', as.character(Bsmt.Qual)),
+  Bsmt.Cond = if_else(is.na(Bsmt.Cond), 'No Basement', as.character(Bsmt.Cond)),
+  Bsmt.Exposure = if_else(is.na(Bsmt.Exposure), 'No Basement', as.character(Bsmt.Cond)),
+  BsmtFin.Type.1 = if_else(is.na(BsmtFin.Type.1), 'No Basement', as.character(BsmtFin.Type.1)),
+  BsmtFin.Type.2 = if_else(is.na(BsmtFin.Type.2), 'No Basement', as.character(BsmtFin.Type.2)),
+  Fireplace.Qu = if_else(is.na(Fireplace.Qu), 'No Fireplace', as.character(Fireplace.Qu)),
+  Garage.Type = if_else(is.na(Garage.Type), 'No Garage', as.character(Garage.Type)),
+  Garage.Finish = if_else(is.na(Garage.Finish), 'No Garage', as.character(Garage.Finish)),
+  Garage.Qual = if_else(is.na(Garage.Qual), 'No Garage', as.character(Garage.Qual)),
+  Garage.Cond = if_else(is.na(Garage.Cond), 'No Garage', as.character(Garage.Cond)),
+  Pool.QC = if_else(is.na(Pool.QC), 'No Pool', as.character(Pool.QC)),
+  Fence = if_else(is.na(Fence), 'No Fence', as.character(Fence)),
+  Misc.Feature = if_else(is.na(Misc.Feature), 'No MiscFeature', as.character(Misc.Feature))
+)
+```
+
+
+```{r}
+predFinalModel.BIC.validation <-exp(predict(finalModel.BIC,ames_validation)) 
+finalModel.BIC.resid.validation <- ames_validation$price - predFinalModel.BIC.validation
+finalModel.BIC.rmse.validation <- sqrt(mean(finalModel.BIC.resid.validation^2))
+paste("The out-of-sample RMSE (Root Mean Squared Error) on validation dataset is $", format(round(finalModel.BIC.rmse.validation)), "dollars")
+```
+
+```{r}
+predFinalModel.BIC.test <-exp(predict(finalModel.BIC,ames_test)) 
+finalModel.BIC.resid.test <- ames_test$price - predFinalModel.BIC.test
+finalModel.BIC.rmse.test <- sqrt(mean(finalModel.BIC.resid.test^2))
+paste("The out-of-sample RMSE (Root Mean Squared Error) on test dataset is $", format(round(finalModel.BIC.rmse.test)), "dollars")
+```
+
+```{r}
+predFinalModel.BIC.train <-exp(predict(finalModel.BIC,ames_train)) 
+finalModel.BIC.resid.train <- ames_train$price - predFinalModel.BIC.train
+finalModel.BIC.rmse.train <- sqrt(mean(finalModel.BIC.resid.train^2))
+paste("The out-of-sample RMSE (Root Mean Squared Error) on training dataset is $", format(round(finalModel.BIC.rmse.train)), "dollars")
+```
+
+RMSE compared results with training dataset, test dataset and validation dataset:
+
+"The out-of-sample RMSE (Root Mean Squared Error) on validation dataset is $ 20606 dollars"
+
+"The out-of-sample RMSE (Root Mean Squared Error) on test dataset is $ 21316 dollars"
+
+"The out-of-sample RMSE (Root Mean Squared Error) on training dataset is $ 20074 dollars"
+
 * * *
 
-NOTE: Write your written response to section 4.4 here. Delete this note before you submit your work.
+* What is the RMSE of your final model when applied to the validation data?  
 
-```{r model_validate}
+Ans: $20606 dollars
+
+* How does this value compare to that of the training data and/or testing data?
+
+Ans: RMSE of validation dataset ($20606) is greater than the RMSE of training dataset ($20074 dollars) as expected but lesser than the RMSE of the test dataset ($21316 dollars).
+
+* What percentage of the 95% predictive confidence (or credible) intervals contain the true price of the house in the validation data set?
+
+```{r}
+# Predict prices
+predict.final <- exp(predict(finalModel.BIC, ames_validation, interval = "prediction"))
+
+# Calculate proportion of observations that fall within prediction intervals
+coverage.prob.final <- mean(ames_validation$price > predict.final[,"lwr"] &
+                            ames_validation$price < predict.final[,"upr"])
+coverage.prob.final
 ```
+
+
+* From this result, does your final model properly reflect uncertainty?
+
+Yes indeed. only 0.0484928 proportion have price that falls outside the prediction intervals. 
 
 * * *
 
@@ -367,6 +644,6 @@ Provide a brief summary of your results, and a brief discussion of what you have
 
 * * *
 
-NOTE: Write your written response to part 5 here. Delete this note before you submit your work.
+
 
 * * *
